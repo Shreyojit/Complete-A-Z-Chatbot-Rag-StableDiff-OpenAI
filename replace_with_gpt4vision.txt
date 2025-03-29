@@ -1,0 +1,60 @@
+import requests
+import base64
+import os
+from utils.webragquery.wrq_utils import Apputils
+from utils.webragquery.llm_rag import LLM_RAG
+import re
+from utils.web_servers.load_web_service_config import LoadWebServicesConfig
+
+WEB_SERVICE_CFG = LoadWebServicesConfig()
+
+class ServiceCall:
+    # ... existing methods ...
+    
+    @staticmethod
+    def ask_openai_vision(prompt: str, image_path: str, max_tokens: int = 300) -> str:
+        """
+        Send image and prompt to OpenAI Vision API
+        """
+        # Encode image to base64
+        with open(image_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"
+        }
+
+        payload = {
+            "model": "gpt-4-vision-preview",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            "max_tokens": max_tokens
+        }
+
+        try:
+            response = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json=payload
+            )
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            print(f"Error calling OpenAI Vision API: {e}")
+            return "Error processing image and prompt"
